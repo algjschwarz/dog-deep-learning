@@ -1,4 +1,5 @@
 import os
+import random
 from dotenv import load_dotenv
 import torch
 import torch.nn as nn
@@ -10,23 +11,32 @@ from sklearn.feature_extraction.text import CountVectorizer
 load_dotenv()
 
 def generate_labeled_instructions(amount=100) -> list:
+    dog_scenarios = ["at the beach", "during a thunderstorm", "at the vet", "in the snow",
+        "chasing a squirrel", "meeting a new puppy", "at the park", "getting a bath",
+        "on a road trip", "waiting for dinner", "at the dog park", "learning a trick",
+        "stealing food", "greeting its owner", "in the backyard", "sleeping"]
+    non_dog_topics = ["a rainstorm", "a city street", "cooking dinner", "a mountain hike",
+        "a broken car", "a birthday party", "the stock market", "a library",
+        "a spaceship", "an old photograph", "a cup of coffee", "a traffic jam"]
     labeled_instructions = []
     for i in range(amount):
         if i < amount * (1/3):
-            labeled_instructions.append(("Give me a sentence about a dog. Only the sentence nothing else.", True))
+            scene = random.choice(dog_scenarios)
+            labeled_instructions.append((f"Write one sentence about a dog {scene}. Only the sentence.", True))
         elif i < amount * (2/3):
-            labeled_instructions.append(("give me a sentence about a dog that doesn't explicitly state that it is a dog. e.g. The puppy wouldn't stop barking all night," + 
-            " He's a very good boy who fetches the newspaper every morning. Only the sentence nothing else", True))
+            scene = random.choice(dog_scenarios)
+            labeled_instructions.append((f"Write one sentence about a dog {scene} without using the words dog, puppy, or canine. Only the sentence.", True))
         else:
-            labeled_instructions.append(("give me a sentence. Only the sentence nothing else.", False))
+            topic = random.choice(non_dog_topics)
+            labeled_instructions.append((f"Write one sentence about {topic}. Only the sentence.", False))
     return labeled_instructions
 
 def create_csv_file(data):
     file_path = 'labeled_data.csv'
-    with open(file_path, mode='w', newline='') as file:
+    with open(file_path, mode='a', newline='') as file:
         csv.writer(file).writerows(data)
 
-def generate_text_api(instruction):
+def generate_text_api(instruction, seed):
     model = Groq(api_key=os.environ.get("GROQ_API_KEY"))
     data = model.chat.completions.create(
         messages=[
@@ -35,7 +45,9 @@ def generate_text_api(instruction):
                 "content": f"{instruction}"
             }
         ],
-        model="llama-3.3-70b-versatile"
+        model="llama-3.3-70b-versatile",
+        seed=seed,
+        temperature=1.0
     )
     return data.choices[0].message.content
 
@@ -55,9 +67,9 @@ def create_synthetic_data(amount=100, use_api=False):
         if not use_api:
             generated_text = pipe(instruction, return_full_text=False, max_new_tokens=30)[0]['generated_text'].strip()
         else:
-            generated_text = generate_text_api(instruction)
+            generated_text = generate_text_api(instruction, index)
         labeled_data.append((generated_text, label))
-        print(f"{generated_text} trial {index}")
+        print(f"{generated_text} seed {index}")
         index += 1
     create_csv_file(labeled_data)
     print("5. done, csv written")
@@ -75,12 +87,14 @@ class Dog_or_Not(nn.Module):
         return l2
 
 def main():
-    create_synthetic_data(use_api=True)
+    #create_synthetic_data(use_api=True)
     vectorizer = CountVectorizer(analyzer='word')
     vectorizer.fit_transform(["goon", 'fortnite dih', "jeffery epstein"])
     net = Dog_or_Not(len(vectorizer.vocabulary_))
-    number = torch.randn(5)
-    print(number)
-    print(net.forward(number))
+    input = torch.randn(5)
+    output = net(input)
+    
+
+
 
 main()
