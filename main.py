@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim 
 import transformers
 import csv
 from groq import Groq
@@ -74,6 +75,26 @@ def create_synthetic_data(amount=100, use_api=False):
     create_csv_file(labeled_data)
     print("5. done, csv written")
 
+def setup_vectorizer() -> CountVectorizer:
+    vectorizer = CountVectorizer(analyzer='word')
+    data = []
+    with open('labeled_data.csv', mode='r') as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            data.append(row[0])
+    if len(data) == 0:
+        raise RuntimeError("Data not read")
+    vectorizer.fit_transform(data)
+    return vectorizer
+
+def get_data() -> list:
+    data = []
+    with open('labeled_data.csv', mode='r') as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            data.append(row)
+    return data
+
 class Dog_or_Not(nn.Module):
     def __init__(self, vocabulary_size):
         super().__init__()
@@ -87,12 +108,23 @@ class Dog_or_Not(nn.Module):
         return l2
 
 def main():
-    #create_synthetic_data(use_api=True)
-    vectorizer = CountVectorizer(analyzer='word')
-    vectorizer.fit_transform(["goon", 'fortnite dih', "jeffery epstein"])
+    epochs = 2
+    learning_rate=0.01
+    
+    vectorizer = setup_vectorizer()
     net = Dog_or_Not(len(vectorizer.vocabulary_))
-    input = torch.randn(5)
-    output = net(input)
+    data = get_data()
+    for epoch in range(epochs):
+        print(f"Epoch: {epoch}")
+        for (text, label) in data:
+            tokenized_text = torch.tensor(vectorizer.transform([text]).toarray(), dtype=torch.float32)
+            out = net(tokenized_text)
+            optimizer = optim.Adam(net.parameters(), lr=learning_rate)
+            out.backward()
+            optimizer.step()
+            net.zero_grad()
+        random.shuffle(data)
+    
     
 
 
