@@ -133,16 +133,20 @@ class Dog_or_Not(nn.Module):
         l2 = self.output(l1)
         return l2
 
-def train_model(vectorizer, epochs, training_data, net, loss_function, optimizer):
-    for epoch in range(epochs):
+def train_model(vectorizer, epochs, training_data, net, loss_function, optimizer, batch_size):
+    for epoch in range(1, epochs + 1):
         print(f"Epoch: {epoch}")
-        for (text, label) in training_data:
-            tokenized_text = torch.tensor(vectorizer.transform([text]).toarray(), dtype=torch.float32)
+        for i in range(0, len(training_data), batch_size):
+            batch = training_data[i:i + batch_size]
+            texts = [text for (text, label) in batch]
+            labels = [1.0 if label == "True" else 0.0 for (text, label) in batch]
+            tokenized_text = torch.tensor(vectorizer.transform(texts).toarray(), dtype=torch.float32)
+            targets = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
             out = net(tokenized_text)
-            loss = loss_function(out, torch.tensor([[1.0 if label == "True" else 0.0]]))
+            loss = loss_function(out, targets)
+            net.zero_grad()
             loss.backward()
             optimizer.step()
-            net.zero_grad()
         random.shuffle(training_data)
 
 def test_model(test_data, vectorizer, net):
@@ -157,9 +161,8 @@ def test_model(test_data, vectorizer, net):
     print(f"Accuracy: {(correct / len(test_data)) * 100}%")
 
 def main():
-    create_synthetic_data(amount=500, use_api=True)
-    epochs = 10
-    learning_rate=0.01
+    #create_synthetic_data(amount=500, use_api=True)
+    batch_size, epochs, learning_rate = 32, 10, 0.01
     vectorizer = setup_vectorizer()
     net = Dog_or_Not(len(vectorizer.vocabulary_))
     data = get_data()
@@ -168,9 +171,12 @@ def main():
     test_data = data[len(data)//2:]
     loss_function = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-    train_model(vectorizer, epochs, training_data, net, loss_function, optimizer)
+    train_model(vectorizer, epochs, training_data, net, loss_function, optimizer, batch_size)
     test_model(test_data, vectorizer, net)
-    
+
+    while True:
+        probability_of_dog = torch.sigmoid(net((torch.tensor(vectorizer.transform([input("Enter Dog or Not Sentence: ")]).toarray(), dtype=torch.float32)))).item()
+        print(f"Percent Chance of dog: {probability_of_dog * 100:.2f}%")
 
 if __name__ == "__main__":
     main()
