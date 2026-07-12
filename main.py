@@ -114,9 +114,12 @@ def main():
     vectorizer = setup_vectorizer()
     net = Dog_or_Not(len(vectorizer.vocabulary_))
     data = get_data()
+    training_data = data[:len(data)//2]
+    test_data = data[len(data)//2:]
+
     for epoch in range(epochs):
         print(f"Epoch: {epoch}")
-        for (text, label) in data:
+        for (text, label) in training_data:
             tokenized_text = torch.tensor(vectorizer.transform([text]).toarray(), dtype=torch.float32)
             out = net(tokenized_text)
             optimizer = optim.Adam(net.parameters(), lr=learning_rate)
@@ -124,9 +127,17 @@ def main():
             loss.backward()
             optimizer.step()
             net.zero_grad()
-        random.shuffle(data)
+        random.shuffle(training_data)
     
-    
+    for (text, label) in test_data:
+        tokenized_text = torch.tensor(vectorizer.transform([text]).toarray(), dtype=torch.float32)
+        out = net(tokenized_text)
+        optimizer = optim.Adam(net.parameters(), lr=learning_rate)
+        loss = nn.BCEWithLogitsLoss(out, int(label))
+            loss.backward()
+            optimizer.step()
+            net.zero_grad()
+      
 
 
 
