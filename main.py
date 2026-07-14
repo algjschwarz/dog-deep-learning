@@ -176,7 +176,10 @@ def main():
 
     while True:
         probability_of_dog = torch.sigmoid(net((torch.tensor(vectorizer.transform([input("Enter Dog or Not Sentence: ")]).toarray(), dtype=torch.float32)))).item()
-        print(f"Percent Chance of dog: {probability_of_dog * 100:.2f}%")
+        if probability_of_dog >= 0.50:
+            print("Yes dog.")
+        else:
+            print("No dog.")
 
 if __name__ == "__main__":
     main()
